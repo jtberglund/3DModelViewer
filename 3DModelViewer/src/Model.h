@@ -11,18 +11,15 @@ using std::string;
 class Model : protected QOpenGLFunctions_3_3_Core {
 
     struct Mesh {
+        string name;
         vector<glm::vec3> vertices;
         vector<glm::vec3> boundingBox;
-        double minX, minY, minZ, maxX, maxY, maxZ;
+        double minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
 
-        Mesh() {
-            minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
-        }
+        Mesh() {}
 
-        Mesh(vector<glm::vec3> vertices) : vertices(vertices) {
-            boundingBox = vector<glm::vec3>(8);
-            minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
-        }
+        Mesh(vector<glm::vec3> vertices) : vertices(vertices) {}
+
     };
 
 public:
@@ -63,8 +60,7 @@ private:
     bool _modelMatrixOutOfDate;
     bool _initialized;
 
-    bool isPartOfBoundingBox(Mesh& mesh, glm::vec3& vertex);
-    void calculateBoundingBox(vector<glm::vec3>& bBox, double minX, double maxX, double minY, double maxY, double minZ, double maxZ);
+    void findBoundingBox(Mesh& mesh);
     double distanceBetweenTwoPoints(glm::vec3 p1, glm::vec3 p2);
 };
 

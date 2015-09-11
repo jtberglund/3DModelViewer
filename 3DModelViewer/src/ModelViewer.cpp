@@ -19,7 +19,6 @@ ModelViewer::ModelViewer(QWidget* parent) :
   _camPosition(glm::vec3(0.0, 0.0, 3.0)),
   _camDirection(glm::vec3(0.0, 0.0, 0.0)),
   _camUp(glm::vec3(0.0, 1.0, 0.0)),
-  _lastPos(QPoint()),
   _pendingMVPChange(false),
   _modelLoaded(false),
   _viewMode(ModelView),
@@ -34,7 +33,7 @@ ModelViewer::ModelViewer(QWidget* parent) :
     makeCurrent();
 
     // Set up our matrices
-    _projection = glm::perspective(_fov, 4.0 / 3.0, 0.1, 10000.0);
+    _projection = glm::perspective(_fov, double(width()) / double(height()), 0.1, 10000.0);
     _view = glm::lookAt(_camPosition, _camDirection, _camUp);
     _model = glm::mat4(1.0); // identity matrix for now - will later be replaced from our model
 
@@ -301,17 +300,14 @@ glm::vec3 ModelViewer::getArcballVector(int x, int y) {
     // Convert the point to [-1, 1] coordinates (where 0,0 is the center of the screen)
     glm::vec3 p = glm::vec3(
         float(x) / float(width()) * 2.0 - 1.0,
-        float(y) / float(height()) * 2.0 - 1.0,
+        -(float(y) / float(height()) * 2.0 - 1.0),
         0
     );
 
-    p.y = -p.y;
-   
     // Now use the pythagorean theorem to check the length of OP and compute z coordinate
     float opSquared = p.x * p.x + p.y * p.y;
-
     if(opSquared <= 1)
-        p.z = sqrt(1 - opSquared); // Pythagore
+        p.z = sqrt(1 - opSquared); // Pythagorean
     else
         p = glm::normalize(p); // nearest point
 
