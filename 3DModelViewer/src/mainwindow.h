@@ -25,7 +25,8 @@ private:
 private slots:
     void addNew();
     void exitApp();
-    
+    void toggleWireFrame(bool checked);
+
 };
 
 #endif // MAINWINDOW_H

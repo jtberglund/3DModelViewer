@@ -237,26 +237,40 @@ bool ModelViewer::loadFile(string fileName) {
 
     _file = fileName;
 
-    _mainModel = unique_ptr<Model>(new Model(_file));
-
-    // Send the vertex data to the gpu
-    vector<glm::vec3> vertices = _mainModel->getVertices();
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-    glBufferData(
-        GL_ARRAY_BUFFER,
-        _mainModel->getNumVertices() * sizeof glm::vec3, 
-        vertices.data(),
-        GL_STATIC_DRAW
-    );
+    if(!_mainModel.get())
+        _mainModel = unique_ptr<Model>(new Model(_file));
 
     _modelLoaded = true;
 
-    repaint();
+    // Send the vertex data to the gpu
+    loadVertices();
+    loadTextures();
 
     // Scale the model to fit within screen dimensions
     _mainModel->fitToScreen(_zPos, _fov);
 
+    repaint();
+
     return true;
+}
+
+void ModelViewer::loadVertices() {
+    if(!_modelLoaded)
+        return; // model has not yet been created
+
+    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        _mainModel->getNumVertices() * sizeof glm::vec3,
+        _mainModel->getVertices().data(),
+        GL_STATIC_DRAW
+    );
+}
+
+void ModelViewer::loadTextures() {
+    if(!_modelLoaded)
+        return; // model has not yet been created
+
 }
 
 void ModelViewer::processCameraMovements() {
@@ -391,9 +405,20 @@ void ModelViewer::resetView() {
     recalculateMVP();
 }
 
+void ModelViewer::setViewMode(ViewMode mode) {
+    _viewMode = mode;
+
+    if(_modelLoaded)
+        loadVertices();
+}
+
+ModelViewer::ViewMode ModelViewer::getViewMode() {
+    return _viewMode;
+}
+
 void ModelViewer::recalculateMVP() {
     //_view = glm::lookAt(_camPosition, _camDirection, _camUp);
-    if(!_mainModel)
+    if(!_modelLoaded)
         return;
 
     _model = _mainModel->getModelMatrix(); // get model matrix from our model object

@@ -28,6 +28,7 @@ class Ui_MainWindowClass
 public:
     QAction *actionNew;
     QAction *actionExit;
+    QAction *actionView_wireframe;
     ModelViewer *viewer;
     QMenuBar *menuBar;
     QMenu *menuFile;
@@ -43,6 +44,12 @@ public:
         actionNew->setObjectName(QStringLiteral("actionNew"));
         actionExit = new QAction(MainWindowClass);
         actionExit->setObjectName(QStringLiteral("actionExit"));
+        actionView_wireframe = new QAction(MainWindowClass);
+        actionView_wireframe->setObjectName(QStringLiteral("actionView_wireframe"));
+        actionView_wireframe->setCheckable(true);
+        QIcon icon;
+        icon.addFile(QStringLiteral(":/MainWindow/Resources/icons/mesh.svg"), QSize(), QIcon::Normal, QIcon::Off);
+        actionView_wireframe->setIcon(icon);
         viewer = new ModelViewer(MainWindowClass);
         viewer->setObjectName(QStringLiteral("viewer"));
         MainWindowClass->setCentralWidget(viewer);
@@ -54,6 +61,7 @@ public:
         MainWindowClass->setMenuBar(menuBar);
         mainToolBar = new QToolBar(MainWindowClass);
         mainToolBar->setObjectName(QStringLiteral("mainToolBar"));
+        mainToolBar->setAcceptDrops(false);
         MainWindowClass->addToolBar(Qt::TopToolBarArea, mainToolBar);
         statusBar = new QStatusBar(MainWindowClass);
         statusBar->setObjectName(QStringLiteral("statusBar"));
@@ -63,6 +71,7 @@ public:
         menuFile->addAction(actionNew);
         menuFile->addSeparator();
         menuFile->addAction(actionExit);
+        mainToolBar->addAction(actionView_wireframe);
 
         retranslateUi(MainWindowClass);
 
@@ -85,6 +94,10 @@ public:
         actionExit->setStatusTip(QApplication::translate("MainWindowClass", "Exit the application", 0));
 #endif // QT_NO_STATUSTIP
         actionExit->setShortcut(QApplication::translate("MainWindowClass", "Esc", 0));
+        actionView_wireframe->setText(QApplication::translate("MainWindowClass", "View wireframe", 0));
+#ifndef QT_NO_TOOLTIP
+        actionView_wireframe->setToolTip(QApplication::translate("MainWindowClass", "View this model as a wireframe", 0));
+#endif // QT_NO_TOOLTIP
         menuFile->setTitle(QApplication::translate("MainWindowClass", "File", 0));
     } // retranslateUi
 

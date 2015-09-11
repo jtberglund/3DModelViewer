@@ -8,14 +8,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(_ui.actionNew, SIGNAL(triggered()), this, SLOT(addNew()));
     connect(_ui.actionExit, SIGNAL(triggered()), this, SLOT(exitApp()));
-
+    connect(_ui.actionView_wireframe, SIGNAL(triggered(bool)), this, SLOT(toggleWireFrame(bool)));
 }
 
 MainWindow::~MainWindow() {}
 
 void MainWindow::addNew() {
+    // TEMP SHORTCUT
     _ui.viewer->loadFile("Resources\\jeep\\jeep1.ms3d");
+    //_ui.viewer->loadFile("Resources\\spider\\spider.obj");
     return;
+
     _file = QFileDialog::getOpenFileName(
         this,                  // Parent object
         tr("Open file"),       // Caption
@@ -30,10 +33,6 @@ void MainWindow::addNew() {
         QErrorMessage errorBox;
         errorBox.showMessage("Error: Invalid file tpye");
         errorBox.exec();
-        //msgBox.critical(0, "Error", "Invalid file");
-        //msgBox.setGeometry(500, 500, 500, 200);
-        //msgBox.setFixedSize(500, 200);
-        //msgBox.exec();
     }
 
     // Set window title to reflect new file
@@ -44,4 +43,11 @@ void MainWindow::addNew() {
 
 void MainWindow::exitApp() {
     close();
+}
+
+void MainWindow::toggleWireFrame(bool checked) {
+    if(checked)
+        _ui.viewer->setViewMode(ModelViewer::ViewMode::WireFrame);
+    else
+        _ui.viewer->setViewMode(ModelViewer::ViewMode::ModelView);
 }

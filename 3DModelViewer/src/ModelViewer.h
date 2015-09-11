@@ -15,13 +15,13 @@ using std::unique_ptr;
 
 class ModelViewer : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
 
+public:
     enum ViewMode {
         PointCloud = GL_POINT,      // View model as point cloud
         WireFrame = GL_LINE_STRIP,  // View model as wireframe/mesh
         ModelView = GL_TRIANGLES    // Normal viewing mode
     };
 
-public:
     ModelViewer(QWidget* parent = 0);
     ~ModelViewer();
 
@@ -30,6 +30,8 @@ public:
     // Reset the position of the model in the view
     void resetView();
     void zoom(double numSteps);
+    void setViewMode(ViewMode mode);
+    ViewMode getViewMode();
 
 protected:
     // Set up OpenGL (create program, gen buffers, etc)
@@ -95,6 +97,8 @@ private:
 
     void recalculateMVP();
     void loadShader(char* shaderSource, GLenum shaderType, GLuint &programId);
+    void loadVertices();
+    void loadTextures();
 
     // Returns true if _keysPressed contains the key passed in 
     bool isKeyPressed(int key);

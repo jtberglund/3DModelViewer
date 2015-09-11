@@ -34,12 +34,16 @@
    <addaction name="menuFile"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
+   <property name="acceptDrops">
+    <bool>false</bool>
+   </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionView_wireframe"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionNew">
@@ -65,6 +69,21 @@
    </property>
    <property name="shortcut">
     <string>Esc</string>
+   </property>
+  </action>
+  <action name="actionView_wireframe">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="mainwindow.qrc">
+     <normaloff>:/MainWindow/Resources/icons/mesh.svg</normaloff>:/MainWindow/Resources/icons/mesh.svg</iconset>
+   </property>
+   <property name="text">
+    <string>View wireframe</string>
+   </property>
+   <property name="toolTip">
+    <string>View this model as a wireframe</string>
    </property>
   </action>
  </widget>
