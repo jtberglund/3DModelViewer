@@ -2,6 +2,7 @@
 
 #include "glm.hpp"
 #include "QOpenGLFunctions_3_3_Core"
+#include "IL\ilu.h"
 #include <vector>
 #include <string>
 
@@ -11,14 +12,16 @@ using std::string;
 class aiScene;
 class aiMaterial;
 
-#define NUM_AI_TEXTURE_TYPES 14
+#define NUM_AI_TEXTURE_TYPES 0xC
 
 class Model : protected QOpenGLFunctions_3_3_Core {
 
+public:
     struct Mesh {
         string name;
         vector<glm::vec3> vertices;
-        vector<glm::vec3> uvs;
+        vector<glm::vec3> normals;
+        vector<glm::vec2> uvs;
 
         vector<glm::vec3> boundingBox;
         double minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
@@ -29,18 +32,21 @@ class Model : protected QOpenGLFunctions_3_3_Core {
 
     };
 
+    struct Material {
+        string fileName;
+    };
+
     struct Texture {
+        string name;
         string fileName;
         int width;
         int height;
         char* data;
-
-        Texture(string fileName, int width, int height, char* data) :
-            fileName(fileName), width(width), height(height), data(data)
-        {}
+        float opacity;
+        GLuint texId;
+        ILuint ilTexId;
     };
 
-public:
     Model();
     Model(string fileName);
     ~Model();
@@ -51,6 +57,8 @@ public:
     bool initialized();
 
     vector<glm::vec3> getVertices();
+    vector<glm::vec2> getTextureUVs();
+    vector<Texture> getTextures();
     int getNumVertices();
     glm::mat4 getModelMatrix();
 
@@ -80,14 +88,18 @@ private:
     int _numVertices;
     float _opacity;
 
+    ILenum _ilError;
+
     bool _modelMatrixOutOfDate;
     bool _initialized;
 
     void findBoundingBox(Mesh& mesh);
     double distanceBetweenTwoPoints(glm::vec3 p1, glm::vec3 p2);
-    void loadTextures(const aiScene* scene, int matIndex);
-    void loadTexture(string fileName);
+    void loadTextures(const aiScene* scene);
+    void loadTexture(string fileName, Texture& texture);
     string getPathFromFileName(string fileName);
     string getFileNameFromPath(string fileName);
+
+    void checkILError();
 };
 

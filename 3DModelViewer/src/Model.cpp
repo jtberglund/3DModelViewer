@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "QErrorMessage"
 #include "fstream"
 
 // GLM
@@ -8,7 +9,8 @@
 #include "Resources\assimp\include\assimp\scene.h"
 #include "Resources\assimp\include\assimp\postprocess.h"
 // DevIL
-#include "IL\ilu.h"
+#include "IL\il.h"
+#include "IL\ilut.h"
 
 Model::Model() :
   _modelMatrixOutOfDate(true),
@@ -19,7 +21,14 @@ Model::Model() :
   _scaleMatrix(glm::mat4()),
   _rotationMatrix(glm::mat4())
 {
-    ilInit(); // Initialize IL so we can import images
+    // Initialize IL so we can import images
+    ilInit(); 
+
+    _ilError = ilGetError();
+    if(_ilError != IL_NO_ERROR) {
+        printf("DevIL Error (ilInit: %s\n", iluGetString(_ilError));
+        exit(2);
+    }
 }
 
 Model::Model(string fileName) : Model() {
@@ -28,7 +37,12 @@ Model::Model(string fileName) : Model() {
     loadFile(fileName);
 }
 
-Model::~Model() {}
+Model::~Model() {
+    for(Texture tex : _textures) {
+        //glDeleteTextures(1, &tex.texId);
+        ilDeleteImages(1, &tex.ilTexId);
+    }
+}
 
 bool Model::loadFile(string fileName) {
     // Create the Assimp importer to import the file data
@@ -66,32 +80,28 @@ bool Model::loadFile(string fileName) {
 
                 _vertices.push_back(vertex);
                 curMesh.vertices.push_back(vertex);
+                
+                // Add texture coordinate
+                if(mesh->mTextureCoords[0]) {
+                    aiVector3D texCoord = mesh->mTextureCoords[0][index];
+                    glm::vec2 uv(texCoord.x, texCoord.y);
+                    curMesh.uvs.push_back(uv);
+                }
             }
-        }
-
-        // Load texture coordinates
-        for(int j = 0; j < AI_MAX_NUMBER_OF_TEXTURECOORDS; ++j) {
-            const aiVector3D* coords = mesh->mTextureCoords[j];
-            if(!coords)
-                continue;
-
-            for(int k = 0; k < mesh->mNumVertices; ++k) {
-                aiVector3D temp = coords[k];
-                curMesh.uvs.push_back(glm::vec3(temp.x, temp.y, temp.z));
-            }
-        }
-
-        // Check if this mesh has a material and load the material (and
-        // relevant textures) if not previously loaded
-        if(scene->HasMaterials()) {
-            loadTextures(scene, mesh->mMaterialIndex);
         }
 
         // Find BBox and then add this mesh
         findBoundingBox(curMesh);
         _meshes.push_back(curMesh);
+        _numVertices += curMesh.vertices.size();
     }
 
+    // Load the materials for this model
+    if(scene->HasMaterials()) {
+        loadTextures(scene);
+    }
+
+    // TODO: Find a better way to get whole model's bbox 
     // Find BBox of the model as a whole
     model.vertices = _vertices;
     findBoundingBox(model);
@@ -104,61 +114,78 @@ bool Model::loadFile(string fileName) {
     _boundingSphereRadius = 0.5 * distanceBetweenTwoPoints(
         glm::vec3(model.minX, model.minY, model.minZ),
         glm::vec3(model.maxX, model.maxY, model.maxZ)
-        );
-    _numVertices = _vertices.size();
+    );
     _initialized = true;
 
     return true;
 }
 
-void Model::loadTextures(const aiScene* scene, int matIndex) {
-    const aiMaterial* materials = scene->mMaterials[matIndex];
-    const aiMaterial* curMaterial = &materials[0];
-    aiString name;
-    aiString path;
+void Model::loadTextures(const aiScene* scene) {
 
-    curMaterial->Get(AI_MATKEY_NAME, name);
-    curMaterial->Get(AI_MATKEY_OPACITY, _opacity);
+    for(int i = 0; i < scene->mNumMaterials; ++i) {
+        // Iterate through each kind of AI texture
+        for(int j = 0; j < NUM_AI_TEXTURE_TYPES; ++j) {
 
-    if(std::find(_materials.begin(), _materials.end(), string(name.data)) != _materials.end()) {
-        return; // material already loaded
-    }
+            const aiMaterial* material = scene->mMaterials[i];
+            unsigned int numTex = material->GetTextureCount((aiTextureType)j);
 
-    _materials.push_back(name.data);
+            // Check for textures and load them if found
+            for(int k = 0; k < numTex; ++k) {
+                Texture curTex;
+                aiString texPath;
+                aiString texName;
 
-    // Check for textures and load them if found
-    for(int j = 0; j < NUM_AI_TEXTURE_TYPES; ++j) {
-        curMaterial->Get(AI_MATKEY_TEXTURE((aiTextureType)j, matIndex), path);
+                material->Get(AI_MATKEY_TEXTURE((aiTextureType)j, k), texPath);
+                material->Get(AI_MATKEY_OPACITY, curTex.opacity);
+                material->Get(AI_MATKEY_NAME, texName);
 
-        if(path.length > 0) {
-            loadTexture(string(path.data));
-            path.Clear();
+                if(texPath.length > 0) {
+                    curTex.fileName = texPath.data;
+                    curTex.name = texName.data;
+
+                    try {
+                        loadTexture(curTex.fileName, curTex);
+                    }
+                    catch(std::runtime_error) {
+                        QErrorMessage errorBox;
+                        string msg = "Error: ";
+                        msg.append(curTex.fileName).append(" could not be loaded");
+                        errorBox.showMessage(msg.c_str());
+                        continue;
+                    }
+
+                    _textures.push_back(curTex);
+                }
+            }
         }
     }
-
-    //for(int i = 0; i < scene->mNumTextures; ++i) {
-    //    aiTexture* tex = scene->mTextures[i];
-    //    aiTexel* texel = tex->pcData;
-    //    int w = tex->mWidth;
-    //    int h = tex->mHeight;
-    //    aiTexel ait = texel[i];
-    //}
+    //_materials.push_back(name.data);
 }
 
-void Model::loadTexture(string fileName) {
-    string fileNameWithPath = string(".\\").append(getPathFromFileName(_fileName).append(getFileNameFromPath(fileName)));
+void Model::loadTexture(string fileName, Texture& texture) {
+    string fileNameWithPath = getPathFromFileName(_fileName).append(getFileNameFromPath(fileName));
 
-    ILenum error;
+    // Create the DevIL texture id
+    ilGenImages(1, &texture.ilTexId);
+    ilBindImage(texture.ilTexId);
+    checkILError();
+
+    // Load the image
     bool success = ilLoadImage(fileNameWithPath.c_str());
     if(!success) {
         throw std::runtime_error("Could not read file");
     }
 
-    ILubyte* data = ilGetData();
-    int w = ilGetInteger(IL_IMAGE_WIDTH);
-    int h = ilGetInteger(IL_IMAGE_HEIGHT);
+    // Switch the renderer
+    ilutRenderer(ILUT_OPENGL);
+    checkILError();
 
-    _textures.push_back(Texture(fileName, w, h, (char*)data));
+    // This will generate an OpenGL texture and send the data to the gpu for us
+    texture.texId = ilutGLBindTexImage();
+
+    texture.data = (char*)ilGetData();
+    texture.width = ilGetInteger(IL_IMAGE_WIDTH);
+    texture.height = ilGetInteger(IL_IMAGE_HEIGHT);
 }
 
 double Model::distanceBetweenTwoPoints(glm::vec3 p1, glm::vec3 p2) {
@@ -219,6 +246,20 @@ vector<glm::vec3> Model::getVertices() {
     return _vertices;
 }
 
+vector<glm::vec2> Model::getTextureUVs() {
+    vector<glm::vec2> uvs;
+    for(Mesh mesh : _meshes) {
+        uvs.reserve(mesh.uvs.size());
+        uvs.insert(uvs.end(), mesh.uvs.begin(), mesh.uvs.end());
+    }
+
+    return uvs;
+}
+
+vector<Model::Texture> Model::getTextures() {
+    return _textures;
+}
+
 int Model::getNumVertices() {
     return _numVertices;
 }
@@ -260,4 +301,11 @@ bool Model::isModelMatrixOutOfDate() {
 
 bool Model::initialized() {
     return _initialized;
+}
+
+void Model::checkILError() {
+    _ilError = ilGetError();
+    if(_ilError != IL_NO_ERROR) {
+        throw std::exception(iluGetString(_ilError));
+    }
 }

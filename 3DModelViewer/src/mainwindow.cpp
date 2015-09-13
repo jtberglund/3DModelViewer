@@ -15,9 +15,9 @@ MainWindow::~MainWindow() {}
 
 void MainWindow::addNew() {
     // TEMP SHORTCUT
-    _ui.viewer->loadFile("Resources\\jeep\\jeep1.ms3d");
+    //_ui.viewer->loadFile("Resources\\jeep\\jeep1.ms3d");
     //_ui.viewer->loadFile("Resources\\spider\\spider.obj");
-    return;
+    //return;
 
     _file = QFileDialog::getOpenFileName(
         this,                  // Parent object

@@ -59,7 +59,7 @@ private:
     GLuint _vertexArray;
     GLuint _vertexBuffer;
     GLuint _colorBuffer; // TEMP!
-    GLuint _texId;
+    vector<GLuint> _texIds;
 
     unique_ptr<Model> _mainModel;
     string _file;
@@ -67,6 +67,7 @@ private:
 
     // Uniforms
     GLuint _uniformMVPHandle;
+    GLuint _uniformTexSamplerHandle;
 
     // Matrices
     glm::mat4 _projection;

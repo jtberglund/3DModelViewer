@@ -74,6 +74,7 @@ void ModelViewer::initializeGL() {
 
     // Get uniform handles
     _uniformMVPHandle = glGetUniformLocation(_programId, "mvp");
+    _uniformTexSamplerHandle = glGetUniformLocation(_programId, "texSampler");
 
     glGenVertexArrays(1, &_vertexArray);
     glBindVertexArray(_vertexArray);
@@ -189,28 +190,31 @@ void ModelViewer::paintGL() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_LINE_SMOOTH);
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-    //glEnable(GL_POLYGON_SMOOTH);
-    //glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
 
     glUseProgram(_programId);
     glBindVertexArray(_vertexArray);
+
+    glActiveTexture(GL_TEXTURE0 + _texIds[0]);
+    glBindTexture(GL_TEXTURE_2D, _texIds[0]);
+
+    // Set uniforms
+    glUniform1i(_uniformTexSamplerHandle, _texIds[0]);
+    glUniformMatrix4fv(_uniformMVPHandle, 1, GL_FALSE, glm::value_ptr(_mvp));
 
     // First attribute buffer - vertices
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-    // Second attribute buffer - colors
-    //glEnableVertexAttribArray(1);
-    //glBindBuffer(GL_ARRAY_BUFFER, _colorBuffer);
-    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-    // Set MVP
-    glUniformMatrix4fv(_uniformMVPHandle, 1, GL_FALSE, glm::value_ptr(_mvp));
+    // Second attribute buffer - texture coordinates
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, _colorBuffer);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
     glDrawArrays(_viewMode, 0, _mainModel->getNumVertices());
 
     // Clean up
+    glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
@@ -261,7 +265,7 @@ void ModelViewer::loadVertices() {
     glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
     glBufferData(
         GL_ARRAY_BUFFER,
-        _mainModel->getNumVertices() * sizeof glm::vec3,
+        _mainModel->getNumVertices() * sizeof(glm::vec3),
         _mainModel->getVertices().data(),
         GL_STATIC_DRAW
     );
@@ -271,6 +275,33 @@ void ModelViewer::loadTextures() {
     if(!_modelLoaded)
         return; // model has not yet been created
 
+    vector<glm::vec2> uvs = _mainModel->getTextureUVs();
+    vector<Model::Texture> textures = _mainModel->getTextures();
+
+    glBindVertexArray(_vertexArray);
+    for(Model::Texture texture : textures) {
+        _texIds.push_back(texture.texId);
+        glActiveTexture(GL_TEXTURE0 + texture.texId);
+
+        glBindTexture(GL_TEXTURE_2D, texture.texId);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture.texId);
+        
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    }
+
+    glGenBuffers(1, &_colorBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, _colorBuffer);
+    glBufferData(
+        GL_ARRAY_BUFFER, 
+        uvs.size() * sizeof(glm::vec2), 
+        uvs.data(), 
+        GL_STATIC_DRAW
+    );
 }
 
 void ModelViewer::processCameraMovements() {
