@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>3D Model Viewer</string>
   </property>
-  <widget class="ModelViewer" name="viewer"/>
+  <widget class="TabPane" name="tabPane"/>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
@@ -90,9 +90,9 @@
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
   <customwidget>
-   <class>ModelViewer</class>
+   <class>TabPane</class>
    <extends>QWidget</extends>
-   <header>modelviewer.h</header>
+   <header>TabPane.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

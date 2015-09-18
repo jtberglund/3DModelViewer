@@ -50,6 +50,7 @@ public:
     Model();
     Model(string fileName);
     ~Model();
+    vector<Model::Texture> texes;
 
     bool loadFile(string fileName);
 
@@ -67,9 +68,11 @@ public:
     void translate(double x, double y, double z);
     void scale(double factor); // overload Model::scale(double, double, double)
     void scale(double x, double y, double z);
+    void loadTexture(string fileName, Texture& texture);
 
     // Call this to scale the model to fit within the screen upon load
     void fitToScreen(double zPos, double fovDegrees);
+    void reset();
 
 private:
     string _fileName;
@@ -96,9 +99,9 @@ private:
     void findBoundingBox(Mesh& mesh);
     double distanceBetweenTwoPoints(glm::vec3 p1, glm::vec3 p2);
     void loadTextures(const aiScene* scene);
-    void loadTexture(string fileName, Texture& texture);
-    string getPathFromFileName(string fileName);
-    string getFileNameFromPath(string fileName);
+    //void loadTexture(string fileName, Texture& texture);
+    //string getPathFromFileName(string fileName);
+    //string getFileNameFromPath(string fileName);
 
     void checkILError();
 };

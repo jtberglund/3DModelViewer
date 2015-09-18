@@ -5,6 +5,7 @@
 #include "gtx\rotate_vector.hpp"
 
 #include <fstream>
+#include "QSurface"
 
 #include "Resources\assimp\include\assimp\Importer.hpp"
 #include "Resources\assimp\include\assimp\scene.h"
@@ -20,14 +21,19 @@ ModelViewer::ModelViewer(QWidget* parent) :
   _camDirection(glm::vec3(0.0, 0.0, 0.0)),
   _camUp(glm::vec3(0.0, 1.0, 0.0)),
   _pendingMVPChange(false),
+  _pendingDataLoad(false),
   _modelLoaded(false),
+  _useSharedContext(false),
   _viewMode(ModelView),
   _file("")
 {
-    // Set OpenGL version
+    // Set OpenGL format
     QSurfaceFormat format;
+    format.setDepthBufferSize(24);
     format.setMajorVersion(3);
     format.setMinorVersion(3);
+    format.setSamples(4);
+    format.setOption(QSurfaceFormat::DebugContext);
     setFormat(format);
 
     makeCurrent();
@@ -51,19 +57,30 @@ ModelViewer::~ModelViewer() {
 }
 
 void ModelViewer::initializeGL() {
+
+    // Create a logger for debugging purposes
+    _logger = new QOpenGLDebugLogger(this);
+
+    connect(_logger, SIGNAL(messageLogged(QOpenGLDebugMessage)), this, SLOT(onMessageLogged(QOpenGLDebugMessage)), Qt::DirectConnection);
+
+    if(_logger->initialize()) {
+        _logger->startLogging(QOpenGLDebugLogger::SynchronousLogging);
+        _logger->enableMessages();
+    }
+
     // Initialize OpenGL for Qt
     initializeOpenGLFunctions();
 
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
+    //glDepthFunc(GL_LESS);
+    //glEnable(GL_LIGHTING);
+    //glEnable(GL_LIGHT0);
     glClearColor(1.0, 1.0, 1.0, 1.0);
 
     // Sample lighting?
     glm::vec4 lightPos(0, 0, 10, 1.0);
-    glLightfv(GL_LIGHT0, GL_POSITION, glm::value_ptr(lightPos));
+    //glLightfv(GL_LIGHT0, GL_POSITION, glm::value_ptr(lightPos));
 
     // Load our shaders
     _programId = glCreateProgram();
@@ -82,98 +99,15 @@ void ModelViewer::initializeGL() {
     glGenBuffers(1, &_vertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
 
-    // Set model vertices
-    //static const GLfloat data[] = {
-    //    -0.5f, -0.5f, -0.5f, // triangle 1 : begin
-    //    -0.5f, -0.5f, 0.5f,
-    //    -0.5f, 0.5f, 0.5f, // triangle 1 : end
-    //    0.5f, 0.5f, -0.5f, // triangle 2 : begin
-    //    -0.5f, -0.5f, -0.5f,
-    //    -0.5f, 0.5f, -0.5f, // triangle 2 : end
-    //    0.5f, -0.5f, 0.5f,
-    //    -0.5f, -0.5f, -0.5f,
-    //    0.5f, -0.5f, -0.5f,
-    //    0.5f, 0.5f, -0.5f,
-    //    0.5f, -0.5f, -0.5f,
-    //    -0.5f, -0.5f, -0.5f,
-    //    -0.5f, -0.5f, -0.5f,
-    //    -0.5f, 0.5f, 0.5f,
-    //    -0.5f, 0.5f, -0.5f,
-    //    0.5f, -0.5f, 0.5f,
-    //    -0.5f, -0.5f, 0.5f,
-    //    -0.5f, -0.5f, -0.5f,
-    //    -0.5f, 0.5f, 0.5f,
-    //    -0.5f, -0.5f, 0.5f,
-    //    0.5f, -0.5f, 0.5f,
-    //    0.5f, 0.5f, 0.5f,
-    //    0.5f, -0.5f, -0.5f,
-    //    0.5f, 0.5f, -0.5f,
-    //    0.5f, -0.5f, -0.5f,
-    //    0.5f, 0.5f, 0.5f,
-    //    0.5f, -0.5f, 0.5f,
-    //    0.5f, 0.5f, 0.5f,
-    //    0.5f, 0.5f, -0.5f,
-    //    -0.5f, 0.5f, -0.5f,
-    //    0.5f, 0.5f, 0.5f,
-    //    -0.5f, 0.5f, -0.5f,
-    //    -0.5f, 0.5f, 0.5f,
-    //    0.5f, 0.5f, 0.5f,
-    //    -0.5f, 0.5f, 0.5f,
-    //    0.5f, -0.5f, 0.5f
-    //};
-
-    //vector<GLfloat> vertices = vector<GLfloat>(data, data + sizeof data / sizeof data[0]);
-
-    //_mainModel->setVertices(verts);
-
-    //static const GLfloat colors[] = {
-    //    0.583f, 0.771f, 0.014f,
-    //    0.609f, 0.115f, 0.436f,
-    //    0.327f, 0.483f, 0.844f,
-    //    0.822f, 0.569f, 0.201f,
-    //    0.435f, 0.602f, 0.223f,
-    //    0.310f, 0.747f, 0.185f,
-    //    0.597f, 0.770f, 0.761f,
-    //    0.559f, 0.436f, 0.730f,
-    //    0.359f, 0.583f, 0.152f,
-    //    0.483f, 0.596f, 0.789f,
-    //    0.559f, 0.861f, 0.639f,
-    //    0.195f, 0.548f, 0.859f,
-    //    0.014f, 0.184f, 0.576f,
-    //    0.771f, 0.328f, 0.970f,
-    //    0.406f, 0.615f, 0.116f,
-    //    0.676f, 0.977f, 0.133f,
-    //    0.971f, 0.572f, 0.833f,
-    //    0.140f, 0.616f, 0.489f,
-    //    0.997f, 0.513f, 0.064f,
-    //    0.945f, 0.719f, 0.592f,
-    //    0.543f, 0.021f, 0.978f,
-    //    0.279f, 0.317f, 0.505f,
-    //    0.167f, 0.620f, 0.077f,
-    //    0.347f, 0.857f, 0.137f,
-    //    0.055f, 0.953f, 0.042f,
-    //    0.714f, 0.505f, 0.345f,
-    //    0.783f, 0.290f, 0.734f,
-    //    0.722f, 0.645f, 0.174f,
-    //    0.302f, 0.455f, 0.848f,
-    //    0.225f, 0.587f, 0.040f,
-    //    0.517f, 0.713f, 0.338f,
-    //    0.053f, 0.959f, 0.120f,
-    //    0.393f, 0.621f, 0.362f,
-    //    0.673f, 0.211f, 0.457f,
-    //    0.820f, 0.883f, 0.371f,
-    //    0.982f, 0.099f, 0.879f
-    //};
-
-    //vector<GLfloat> v = _mainModel->getVertices();
-    //glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof GLfloat, v.data(), GL_STATIC_DRAW);
-
-    //glGenBuffers(1, &_colorBuffer);
-    //glBindBuffer(GL_ARRAY_BUFFER, _colorBuffer);
-    //glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+    _useSharedContext = true;
 }
 
 void ModelViewer::paintGL() {
+
+    if(_pendingDataLoad) {
+        loadFile(_file);
+        //loadTextures();
+    }
 
     if(!_modelLoaded)
         return;
@@ -241,6 +175,11 @@ bool ModelViewer::loadFile(string fileName) {
 
     _file = fileName;
 
+    if(!isInitialized()) {
+        _pendingDataLoad = true;
+        return true;
+    }
+
     if(!_mainModel.get())
         _mainModel = unique_ptr<Model>(new Model(_file));
 
@@ -249,11 +188,12 @@ bool ModelViewer::loadFile(string fileName) {
     // Send the vertex data to the gpu
     loadVertices();
     loadTextures();
+    //_pendingDataLoad = true;
 
     // Scale the model to fit within screen dimensions
     _mainModel->fitToScreen(_zPos, _fov);
 
-    repaint();
+    //repaint();
 
     return true;
 }
@@ -276,22 +216,26 @@ void ModelViewer::loadTextures() {
         return; // model has not yet been created
 
     vector<glm::vec2> uvs = _mainModel->getTextureUVs();
+    //for(Model::Texture& t : _mainModel->texes) {
+    //    _mainModel->loadTexture(t.fileName, t);
+
+    //}
     vector<Model::Texture> textures = _mainModel->getTextures();
 
     glBindVertexArray(_vertexArray);
+
     for(Model::Texture texture : textures) {
         _texIds.push_back(texture.texId);
         glActiveTexture(GL_TEXTURE0 + texture.texId);
 
-        glBindTexture(GL_TEXTURE_2D, texture.texId);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture.texId);
         
+        // Texture parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
     }
 
     glGenBuffers(1, &_colorBuffer);
@@ -302,6 +246,7 @@ void ModelViewer::loadTextures() {
         uvs.data(), 
         GL_STATIC_DRAW
     );
+    _pendingDataLoad = false;
 }
 
 void ModelViewer::processCameraMovements() {
@@ -430,6 +375,7 @@ void ModelViewer::resetView() {
         _camDirection, 
         _camUp
     );
+    _mainModel->reset();
     _model = glm::mat4(1.0);
     _xPos = _yPos = 0.0;
     _zPos = 3.0;
@@ -519,4 +465,9 @@ void ModelViewer::loadShader(char* shaderSource, GLenum shaderType, GLuint &prog
     glDeleteShader(shaderId);
 
     shaderFile.close();
+}
+
+void ModelViewer::onMessageLogged(QOpenGLDebugMessage message) {
+    if(message.severity() != QOpenGLDebugMessage::LowSeverity)
+        qDebug() << message;
 }

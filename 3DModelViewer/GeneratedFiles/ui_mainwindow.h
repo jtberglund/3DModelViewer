@@ -19,7 +19,7 @@
 #include <QtWidgets/QMenuBar>
 #include <QtWidgets/QStatusBar>
 #include <QtWidgets/QToolBar>
-#include "modelviewer.h"
+#include "TabPane.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -29,7 +29,7 @@ public:
     QAction *actionNew;
     QAction *actionExit;
     QAction *actionView_wireframe;
-    ModelViewer *viewer;
+    TabPane *tabPane;
     QMenuBar *menuBar;
     QMenu *menuFile;
     QToolBar *mainToolBar;
@@ -50,9 +50,9 @@ public:
         QIcon icon;
         icon.addFile(QStringLiteral(":/MainWindow/Resources/icons/mesh.svg"), QSize(), QIcon::Normal, QIcon::Off);
         actionView_wireframe->setIcon(icon);
-        viewer = new ModelViewer(MainWindowClass);
-        viewer->setObjectName(QStringLiteral("viewer"));
-        MainWindowClass->setCentralWidget(viewer);
+        tabPane = new TabPane(MainWindowClass);
+        tabPane->setObjectName(QStringLiteral("tabPane"));
+        MainWindowClass->setCentralWidget(tabPane);
         menuBar = new QMenuBar(MainWindowClass);
         menuBar->setObjectName(QStringLiteral("menuBar"));
         menuBar->setGeometry(QRect(0, 0, 600, 21));

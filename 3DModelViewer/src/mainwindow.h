@@ -9,6 +9,8 @@
 using std::shared_ptr;
 using std::string;
 
+class TabPane;
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -18,6 +20,7 @@ public:
 
 private:
     Ui::MainWindowClass _ui;
+    TabPane* _tabPane;
 
     //shared_ptr<ModelViewer> _viewer;
     string _file;

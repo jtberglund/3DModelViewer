@@ -14,7 +14,7 @@ using std::string;
 using std::unique_ptr;
 
 class ModelViewer : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
-
+    Q_OBJECT
 public:
     enum ViewMode {
         PointCloud = GL_POINT,      // View model as point cloud
@@ -32,6 +32,9 @@ public:
     void zoom(double numSteps);
     void setViewMode(ViewMode mode);
     ViewMode getViewMode();
+
+public slots:
+    void onMessageLogged(QOpenGLDebugMessage message);
 
 protected:
     // Set up OpenGL (create program, gen buffers, etc)
@@ -64,6 +67,7 @@ private:
     unique_ptr<Model> _mainModel;
     string _file;
     ViewMode _viewMode;
+    QOpenGLDebugLogger* _logger;
 
     // Uniforms
     GLuint _uniformMVPHandle;
@@ -88,6 +92,10 @@ private:
     bool _pendingMVPChange; 
     // False until a model has been loaded using ModelViewer::loadFile(string)
     bool _modelLoaded; 
+    // Set to true if model data is passed to ModelViewer before OpenGL has a chance to initialize
+    bool _pendingDataLoad;
+
+    bool _useSharedContext;
 
     QPoint _lastPos; // Last mouse position
     // Holds all keys currently being pressed

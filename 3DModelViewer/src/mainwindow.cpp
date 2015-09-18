@@ -1,4 +1,6 @@
 #include "mainwindow.h"
+#include "TabPane.h"
+#include "ModelViewer.h"
 #include "QMenu"
 #include "QFileDialog"
 #include "QErrorMessage"
@@ -14,10 +16,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 MainWindow::~MainWindow() {}
 
 void MainWindow::addNew() {
+
     // TEMP SHORTCUT
-    //_ui.viewer->loadFile("Resources\\jeep\\jeep1.ms3d");
-    //_ui.viewer->loadFile("Resources\\spider\\spider.obj");
-    //return;
+    _ui.tabPane->addTab("Resources\\jeep\\jeep1.ms3d");
+    return;
 
     _file = QFileDialog::getOpenFileName(
         this,                  // Parent object
@@ -27,18 +29,26 @@ void MainWindow::addNew() {
            "Wavefront (*.obj)")
     ).toStdString();
 
+    if(_file.length() == 0)
+        return; // no file picked
+
     // Load the file into the viewer
-    if(!_ui.viewer->loadFile(_file)) {
+    if(_ui.tabPane->addTab(_file) == -1) {
         // If we can't load the file, create an error popup
         QErrorMessage errorBox;
         errorBox.showMessage("Error: Invalid file tpye");
         errorBox.exec();
+        return;
     }
 
     // Set window title to reflect new file
     string title = "3D Model Viewer - ";
     title.append(_file);
     setWindowTitle(title.c_str());
+
+    // Add a TabPane that contains our diferent viewports and widgets
+    //_tabPane = new TabPane(this);
+    //setCentralWidget(_tabPane);
 }
 
 void MainWindow::exitApp() {
@@ -46,8 +56,5 @@ void MainWindow::exitApp() {
 }
 
 void MainWindow::toggleWireFrame(bool checked) {
-    if(checked)
-        _ui.viewer->setViewMode(ModelViewer::ViewMode::WireFrame);
-    else
-        _ui.viewer->setViewMode(ModelViewer::ViewMode::ModelView);
+    _ui.tabPane->setWireFrameView(checked);
 }

@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "Utils.h"
 #include "QErrorMessage"
 #include "fstream"
 
@@ -23,12 +24,8 @@ Model::Model() :
 {
     // Initialize IL so we can import images
     ilInit(); 
-
-    _ilError = ilGetError();
-    if(_ilError != IL_NO_ERROR) {
-        printf("DevIL Error (ilInit: %s\n", iluGetString(_ilError));
-        exit(2);
-    }
+    checkILError();
+    initializeOpenGLFunctions();
 }
 
 Model::Model(string fileName) : Model() {
@@ -39,7 +36,7 @@ Model::Model(string fileName) : Model() {
 
 Model::~Model() {
     for(Texture tex : _textures) {
-        //glDeleteTextures(1, &tex.texId);
+        glDeleteTextures(1, &tex.texId);
         ilDeleteImages(1, &tex.ilTexId);
     }
 }
@@ -107,7 +104,11 @@ bool Model::loadFile(string fileName) {
     findBoundingBox(model);
 
     // Center the model
-    translate(-(model.minX + model.maxX) / 2.0, -(model.minY + model.maxY) / 2.0, -(model.minZ + model.maxZ) / 2.0);
+    translate( 
+        -(model.minX + model.maxX) / 2.0, 
+        -(model.minY + model.maxY) / 2.0, 
+        -(model.minZ + model.maxZ) / 2.0
+    );
 
     // We will set the bounding sphere diameter to be the distance between two corners of the bounding box
     // This is a rough estimate, but it works well for the purpose of fitting the model to the viewport
@@ -144,6 +145,8 @@ void Model::loadTextures(const aiScene* scene) {
                     curTex.name = texName.data;
 
                     try {
+                        //texes.push_back(curTex);
+                        //return;
                         loadTexture(curTex.fileName, curTex);
                     }
                     catch(std::runtime_error) {
@@ -163,10 +166,12 @@ void Model::loadTextures(const aiScene* scene) {
 }
 
 void Model::loadTexture(string fileName, Texture& texture) {
-    string fileNameWithPath = getPathFromFileName(_fileName).append(getFileNameFromPath(fileName));
+    //string fileNameWithPath = getPathFromFileName(_fileName).append(getFileNameFromPath(fileName));
+    string fileNameWithPath = Utils::getPathFromFileName(_fileName).append(Utils::getFileNameFromPath(fileName));
 
     // Create the DevIL texture id
     ilGenImages(1, &texture.ilTexId);
+    checkILError();
     ilBindImage(texture.ilTexId);
     checkILError();
 
@@ -234,13 +239,13 @@ void Model::fitToScreen(double zPos, double fovDegrees) {
     scale(scaleFactor);
 }
 
-string Model::getPathFromFileName(string fileName) {
-    return fileName.substr(0, fileName.find_last_of("/\\") + 1);
-}
-
-string Model::getFileNameFromPath(string fileName) {
-    return fileName.substr(fileName.find_last_of("/\\") + 1);
-}
+//string Model::getPathFromFileName(string fileName) {
+//    return fileName.substr(0, fileName.find_last_of("/\\") + 1);
+//}
+//
+//string Model::getFileNameFromPath(string fileName) {
+//    return fileName.substr(fileName.find_last_of("/\\") + 1);
+//}
 
 vector<glm::vec3> Model::getVertices() {
     return _vertices;
@@ -301,6 +306,13 @@ bool Model::isModelMatrixOutOfDate() {
 
 bool Model::initialized() {
     return _initialized;
+}
+
+void Model::reset() {
+    //_translationMatrix = glm::mat4(1.0);
+    _rotationMatrix = glm::mat4(1.0);
+
+    _modelMatrixOutOfDate = true;
 }
 
 void Model::checkILError() {
