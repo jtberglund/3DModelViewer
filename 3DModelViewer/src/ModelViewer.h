@@ -15,6 +15,7 @@ using std::unique_ptr;
 
 class ModelViewer : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     Q_OBJECT
+
 public:
     enum ViewMode {
         PointCloud = GL_POINT,      // View model as point cloud
@@ -65,6 +66,7 @@ private:
     vector<GLuint> _texIds;
 
     unique_ptr<Model> _mainModel;
+    vector<Model::Mesh> _meshes;
     string _file;
     ViewMode _viewMode;
     QOpenGLDebugLogger* _logger;
@@ -92,10 +94,6 @@ private:
     bool _pendingMVPChange; 
     // False until a model has been loaded using ModelViewer::loadFile(string)
     bool _modelLoaded; 
-    // Set to true if model data is passed to ModelViewer before OpenGL has a chance to initialize
-    bool _pendingDataLoad;
-
-    bool _useSharedContext;
 
     QPoint _lastPos; // Last mouse position
     // Holds all keys currently being pressed
@@ -107,7 +105,6 @@ private:
     void recalculateMVP();
     void loadShader(char* shaderSource, GLenum shaderType, GLuint &programId);
     void loadVertices();
-    void loadTextures();
 
     // Returns true if _keysPressed contains the key passed in 
     bool isKeyPressed(int key);

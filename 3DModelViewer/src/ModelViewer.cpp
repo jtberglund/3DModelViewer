@@ -21,9 +21,7 @@ ModelViewer::ModelViewer(QWidget* parent) :
   _camDirection(glm::vec3(0.0, 0.0, 0.0)),
   _camUp(glm::vec3(0.0, 1.0, 0.0)),
   _pendingMVPChange(false),
-  _pendingDataLoad(false),
   _modelLoaded(false),
-  _useSharedContext(false),
   _viewMode(ModelView),
   _file("")
 {
@@ -98,16 +96,9 @@ void ModelViewer::initializeGL() {
 
     glGenBuffers(1, &_vertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-
-    _useSharedContext = true;
 }
 
 void ModelViewer::paintGL() {
-
-    if(_pendingDataLoad) {
-        loadFile(_file);
-        //loadTextures();
-    }
 
     if(!_modelLoaded)
         return;
@@ -125,27 +116,39 @@ void ModelViewer::paintGL() {
     glEnable(GL_LINE_SMOOTH);
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
+    // Set polygon mode based on current viewing mode
+    if(_viewMode == ViewMode::PointCloud)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+    else if(_viewMode == ViewMode::WireFrame)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    else if(_viewMode == ViewMode::ModelView)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     glUseProgram(_programId);
     glBindVertexArray(_vertexArray);
 
-    glActiveTexture(GL_TEXTURE0 + _texIds[0]);
-    glBindTexture(GL_TEXTURE_2D, _texIds[0]);
-
-    // Set uniforms
-    glUniform1i(_uniformTexSamplerHandle, _texIds[0]);
+    // Set MVP
     glUniformMatrix4fv(_uniformMVPHandle, 1, GL_FALSE, glm::value_ptr(_mvp));
 
-    // First attribute buffer - vertices
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    for(Model::Mesh mesh : _meshes) {
+        glActiveTexture(GL_TEXTURE0 + mesh.diffuseTexture.texId);
+        glBindTexture(GL_TEXTURE_2D, mesh.diffuseTexture.texId);
 
-    // Second attribute buffer - texture coordinates
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, _colorBuffer);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        // Set texture sampler
+        glUniform1i(_uniformTexSamplerHandle, mesh.diffuseTexture.texId);
 
-    glDrawArrays(_viewMode, 0, _mainModel->getNumVertices());
+        // First attribute buffer - vertices
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.vertexBuffer);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+        // Second attribute buffer - texture coordinates
+        glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.uvBuffer);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+        glDrawArrays(GL_TRIANGLES, 0, mesh.numFaces * 3);
+    }
 
     // Clean up
     glDisableVertexAttribArray(1);
@@ -175,11 +178,6 @@ bool ModelViewer::loadFile(string fileName) {
 
     _file = fileName;
 
-    if(!isInitialized()) {
-        _pendingDataLoad = true;
-        return true;
-    }
-
     if(!_mainModel.get())
         _mainModel = unique_ptr<Model>(new Model(_file));
 
@@ -187,13 +185,9 @@ bool ModelViewer::loadFile(string fileName) {
 
     // Send the vertex data to the gpu
     loadVertices();
-    loadTextures();
-    //_pendingDataLoad = true;
 
     // Scale the model to fit within screen dimensions
     _mainModel->fitToScreen(_zPos, _fov);
-
-    //repaint();
 
     return true;
 }
@@ -202,51 +196,30 @@ void ModelViewer::loadVertices() {
     if(!_modelLoaded)
         return; // model has not yet been created
 
-    glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-    glBufferData(
-        GL_ARRAY_BUFFER,
-        _mainModel->getNumVertices() * sizeof(glm::vec3),
-        _mainModel->getVertices().data(),
-        GL_STATIC_DRAW
-    );
-}
+    _meshes = _mainModel->getMeshes();
 
-void ModelViewer::loadTextures() {
-    if(!_modelLoaded)
-        return; // model has not yet been created
+    for(Model::Mesh& mesh : _meshes) {
 
-    vector<glm::vec2> uvs = _mainModel->getTextureUVs();
-    //for(Model::Texture& t : _mainModel->texes) {
-    //    _mainModel->loadTexture(t.fileName, t);
+        // Send vertex data to gpu
+        glGenBuffers(1, &mesh.vertexBuffer);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.vertexBuffer);
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            mesh.vertices.size() * sizeof(glm::vec3),
+            mesh.vertices.data(),
+            GL_STATIC_DRAW
+        );
 
-    //}
-    vector<Model::Texture> textures = _mainModel->getTextures();
-
-    glBindVertexArray(_vertexArray);
-
-    for(Model::Texture texture : textures) {
-        _texIds.push_back(texture.texId);
-        glActiveTexture(GL_TEXTURE0 + texture.texId);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture.texId);
-        
-        // Texture parameters
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // Send uv data to gpu
+        glGenBuffers(1, &mesh.uvBuffer);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.uvBuffer);
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            mesh.numFaces * 3 * sizeof(glm::vec2),
+            mesh.uvs.data(),
+            GL_STATIC_DRAW
+        );
     }
-
-    glGenBuffers(1, &_colorBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, _colorBuffer);
-    glBufferData(
-        GL_ARRAY_BUFFER, 
-        uvs.size() * sizeof(glm::vec2), 
-        uvs.data(), 
-        GL_STATIC_DRAW
-    );
-    _pendingDataLoad = false;
 }
 
 void ModelViewer::processCameraMovements() {
@@ -384,9 +357,6 @@ void ModelViewer::resetView() {
 
 void ModelViewer::setViewMode(ViewMode mode) {
     _viewMode = mode;
-
-    if(_modelLoaded)
-        loadVertices();
 }
 
 ModelViewer::ViewMode ModelViewer::getViewMode() {

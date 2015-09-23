@@ -45,7 +45,7 @@ bool Model::loadFile(string fileName) {
     // Create the Assimp importer to import the file data
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(fileName,
-        aiProcess_CalcTangentSpace |
+        //aiProcess_CalcTangentSpace |
         aiProcess_Triangulate |
         aiProcess_JoinIdenticalVertices |
         aiProcess_SortByPType);
@@ -53,53 +53,16 @@ bool Model::loadFile(string fileName) {
     if(!scene)
         return false; // file could not be read
 
-    Mesh model; // represents complete model mesh
-
-    // Iterate through each mesh in the model
-    for(int i = 0; i < scene->mNumMeshes; ++i) {
-        const aiMesh* mesh = scene->mMeshes[i];
-        Mesh curMesh;
-
-        // Bounding box for this mesh
-        double minX = 0, maxX = 0, minY = 0, maxY = 0, minZ = 0, maxZ = 0;
-
-        curMesh.name = mesh->mName.data;
-
-        // Load vertices
-        for(int j = 0; j < mesh->mNumFaces; ++j) {
-            const aiFace* face = &mesh->mFaces[j];
-
-            // Add each vertex of this mesh to our vertices
-            for(int k = 0; k < face->mNumIndices; ++k) {
-                int index = face->mIndices[k];
-                aiVector3D temp = mesh->mVertices[index];
-                glm::vec3 vertex(temp.x, temp.y, temp.z);
-
-                _vertices.push_back(vertex);
-                curMesh.vertices.push_back(vertex);
-                
-                // Add texture coordinate
-                if(mesh->mTextureCoords[0]) {
-                    aiVector3D texCoord = mesh->mTextureCoords[0][index];
-                    glm::vec2 uv(texCoord.x, texCoord.y);
-                    curMesh.uvs.push_back(uv);
-                }
-            }
-        }
-
-        // Find BBox and then add this mesh
-        findBoundingBox(curMesh);
-        _meshes.push_back(curMesh);
-        _numVertices += curMesh.vertices.size();
-    }
+    // Recursively load each node in this model, starting with the root node
+    loadNode(scene->mRootNode, scene);
 
     // Load the materials for this model
     if(scene->HasMaterials()) {
         loadTextures(scene);
     }
 
-    // TODO: Find a better way to get whole model's bbox 
     // Find BBox of the model as a whole
+    Mesh model; // represents complete model mesh
     model.vertices = _vertices;
     findBoundingBox(model);
 
@@ -121,13 +84,79 @@ bool Model::loadFile(string fileName) {
     return true;
 }
 
+void Model::loadNode(aiNode* node, const aiScene* scene) {
+    // Load all the meshes in this node
+    for(int i = 0; i < node->mNumMeshes; ++i) {
+        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+        loadMesh(mesh);
+    }
+
+    // Recursively load each child node 
+    for(int i = 0; i < node->mNumChildren; ++i)
+        loadNode(node->mChildren[i], scene);
+}
+
+void Model::loadMesh(aiMesh* mesh) {
+    vector<glm::vec3> vertices;
+    vector<glm::vec3> normals;
+    vector<glm::vec2> uvs;
+
+    Mesh m;
+    m.matIndex = mesh->mMaterialIndex;
+    m.numFaces = mesh->mNumFaces;
+
+    for(int i = 0; i < mesh->mNumFaces; ++i) {
+        aiFace face = mesh->mFaces[i];
+
+        for(int j = 0; j < face.mNumIndices; ++j) {
+            int index = face.mIndices[j];
+
+            // Vertices
+            if(mesh->HasPositions()) {
+                glm::vec3 vertex(
+                    mesh->mVertices[index].x, 
+                    mesh->mVertices[index].y, 
+                    mesh->mVertices[index].z
+                );
+                _vertices.push_back(vertex);
+                m.vertices.push_back(vertex);
+            }
+
+            // Normals
+            if(mesh->HasNormals()) {
+                glm::vec3 normal(
+                    mesh->mNormals[index].x,
+                    mesh->mNormals[index].y,
+                    mesh->mNormals[index].z
+                );
+                m.normals.push_back(normal);
+            }
+
+            // UVs
+            if(mesh->HasTextureCoords(0) && mesh->mTextureCoords[0]) {
+                aiVector3D texCoord = mesh->mTextureCoords[0][index];
+                glm::vec2 uv(texCoord.x, texCoord.y);
+                m.uvs.push_back(uv);
+            }
+
+        }
+    }
+
+    _numVertices += mesh->mNumVertices; // add to total number of vertices
+    findBoundingBox(m); 
+    // Add this mesh to our vector of meshes
+    _meshes.push_back(m);
+}
+
+// TODO refactor this method
 void Model::loadTextures(const aiScene* scene) {
 
-    for(int i = 0; i < scene->mNumMaterials; ++i) {
+    //for(int i = 0; i < scene->mNumMaterials; ++i) {
+    for(Mesh &mesh : _meshes) {
         // Iterate through each kind of AI texture
         for(int j = 0; j < NUM_AI_TEXTURE_TYPES; ++j) {
 
-            const aiMaterial* material = scene->mMaterials[i];
+            const aiMaterial* material = scene->mMaterials[mesh.matIndex];
             unsigned int numTex = material->GetTextureCount((aiTextureType)j);
 
             // Check for textures and load them if found
@@ -141,12 +170,21 @@ void Model::loadTextures(const aiScene* scene) {
                 material->Get(AI_MATKEY_NAME, texName);
 
                 if(texPath.length > 0) {
+                    bool skip = false;
+                    for(Texture t : _textures) {
+                        if(t.fileName == texPath.data) {
+                            skip = true;
+                            mesh.diffuseTexture.texId = t.texId;
+                        }
+                    }
+                    if(skip) {
+                        continue;
+                    }
+
                     curTex.fileName = texPath.data;
                     curTex.name = texName.data;
 
                     try {
-                        //texes.push_back(curTex);
-                        //return;
                         loadTexture(curTex.fileName, curTex);
                     }
                     catch(std::runtime_error) {
@@ -156,8 +194,9 @@ void Model::loadTextures(const aiScene* scene) {
                         errorBox.showMessage(msg.c_str());
                         continue;
                     }
-
+                    mesh.diffuseTexture.texId = curTex.texId;
                     _textures.push_back(curTex);
+                    break;
                 }
             }
         }
@@ -187,6 +226,15 @@ void Model::loadTexture(string fileName, Texture& texture) {
 
     // This will generate an OpenGL texture and send the data to the gpu for us
     texture.texId = ilutGLBindTexImage();
+    checkILError();
+
+    glBindTexture(GL_TEXTURE_2D, texture.texId);
+
+    // Texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     texture.data = (char*)ilGetData();
     texture.width = ilGetInteger(IL_IMAGE_WIDTH);
@@ -197,6 +245,7 @@ double Model::distanceBetweenTwoPoints(glm::vec3 p1, glm::vec3 p2) {
     return hypot(hypot(p1.x - p2.x, p1.y - p2.y), p1.z - p2.z);
 }
 
+// TODO find a better way to find bbox
 void Model::findBoundingBox(Mesh& mesh) {
     // Find the max/min x, y, and z values for this mesh
     for(auto vertex : mesh.vertices) {
@@ -233,36 +282,22 @@ void Model::fitToScreen(double zPos, double fovDegrees) {
         return;
 
     // This is the maximum radius we can have for this FOV
-    auto rMax = zPos * sin(glm::radians(fovDegrees));
+    double rMax = zPos * sin(glm::radians(fovDegrees));
     // How much we need to scale by to fit the model in the screen
     double scaleFactor = rMax / _boundingSphereRadius;
     scale(scaleFactor);
 }
 
-//string Model::getPathFromFileName(string fileName) {
-//    return fileName.substr(0, fileName.find_last_of("/\\") + 1);
-//}
-//
-//string Model::getFileNameFromPath(string fileName) {
-//    return fileName.substr(fileName.find_last_of("/\\") + 1);
-//}
-
 vector<glm::vec3> Model::getVertices() {
     return _vertices;
 }
 
-vector<glm::vec2> Model::getTextureUVs() {
-    vector<glm::vec2> uvs;
-    for(Mesh mesh : _meshes) {
-        uvs.reserve(mesh.uvs.size());
-        uvs.insert(uvs.end(), mesh.uvs.begin(), mesh.uvs.end());
-    }
-
-    return uvs;
-}
-
 vector<Model::Texture> Model::getTextures() {
     return _textures;
+}
+
+vector<Model::Mesh> Model::getMeshes() {
+    return _meshes;
 }
 
 int Model::getNumVertices() {

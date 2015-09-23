@@ -18,8 +18,9 @@ MainWindow::~MainWindow() {}
 void MainWindow::addNew() {
 
     // TEMP SHORTCUT
-    _ui.tabPane->addTab("Resources\\jeep\\jeep1.ms3d");
-    return;
+    //_ui.tabPane->addTab("Resources\\spider\\spider.obj");
+    //_ui.tabPane->addTab("Resources\\jeep\\jeep1.ms3d");
+    //return;
 
     _file = QFileDialog::getOpenFileName(
         this,                  // Parent object
