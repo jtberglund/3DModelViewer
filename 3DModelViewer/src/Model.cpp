@@ -138,7 +138,6 @@ void Model::loadMesh(aiMesh* mesh) {
                 glm::vec2 uv(texCoord.x, texCoord.y);
                 m.uvs.push_back(uv);
             }
-
         }
     }
 

@@ -43,6 +43,7 @@ public:
 
         GLuint vertexBuffer;
         GLuint uvBuffer;
+        GLuint normalBuffer;
 
         int matIndex;
         int numFaces;

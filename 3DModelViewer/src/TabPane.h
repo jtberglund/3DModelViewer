@@ -21,14 +21,20 @@ public:
     // Create a new tab with the specified file
     // Returns index of the tab
     int addTab(string fileName);
-    void setWireFrameView(bool enabled);
 
 public slots:
     void closeTab(int index);
+    void enableLighting(bool enabled);
+    void enableWireFrameView(bool enabled);
+    void enableTexturing(bool enabled);
 
 private:
     // Holds all of our views
     std::vector<shared_ptr<ModelViewer>> _viewers;
+
+    bool _wireFrameEnabled;
+    bool _lightingEnabled;
+    bool _texturingEnabled;
 
     void addViewer();
 };

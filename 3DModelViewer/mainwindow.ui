@@ -44,6 +44,8 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionView_wireframe"/>
+   <addaction name="actionToggleTexturing"/>
+   <addaction name="actionLighting"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionNew">
@@ -84,6 +86,51 @@
    </property>
    <property name="toolTip">
     <string>View this model as a wireframe</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+M</string>
+   </property>
+  </action>
+  <action name="actionLighting">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>Resources/icons/light-bulb24.svg</normaloff>Resources/icons/light-bulb24.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Toggle lighting</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Lighting</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+L</string>
+   </property>
+  </action>
+  <action name="actionToggleTexturing">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>Resources/icons/image.svg</normaloff>Resources/icons/image.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Toggle Texturing</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Texturing</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+T</string>
    </property>
   </action>
  </widget>

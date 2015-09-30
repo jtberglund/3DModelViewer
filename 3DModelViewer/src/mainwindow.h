@@ -21,14 +21,11 @@ public:
 private:
     Ui::MainWindowClass _ui;
     TabPane* _tabPane;
-
-    //shared_ptr<ModelViewer> _viewer;
     string _file;
 
 private slots:
     void addNew();
     void exitApp();
-    void toggleWireFrame(bool checked);
 
 };
 

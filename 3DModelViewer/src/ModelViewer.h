@@ -32,6 +32,8 @@ public:
     void resetView();
     void zoom(double numSteps);
     void setViewMode(ViewMode mode);
+    void setTexturingEnabled(bool enabled);
+    void setLightingEnabled(bool enabled);
     ViewMode getViewMode();
 
 public slots:
@@ -62,7 +64,6 @@ private:
     GLuint _programId;
     GLuint _vertexArray;
     GLuint _vertexBuffer;
-    GLuint _colorBuffer; // TEMP!
     vector<GLuint> _texIds;
 
     unique_ptr<Model> _mainModel;
@@ -71,11 +72,21 @@ private:
     ViewMode _viewMode;
     QOpenGLDebugLogger* _logger;
 
-    // Uniforms
+    // Uniform handles
     GLuint _uniformMVPHandle;
     GLuint _uniformTexSamplerHandle;
+    GLuint _uniformModelHandle;
+    GLuint _uniformTexEnabledHandle;
+    GLuint _uniformLightingHandle;
+    GLuint _uniformLightPosHandle;
+    GLuint _uniformLightingEnabledHandle;
+    GLuint _uniformViewPosHandle;
 
-    // Matrices
+    // Lighting
+    glm::vec3 _lightColor;
+    glm::vec3 _lightPos;
+
+    // MVP matrices
     glm::mat4 _projection;
     glm::mat4 _view;
     glm::mat4 _model;
@@ -94,6 +105,8 @@ private:
     bool _pendingMVPChange; 
     // False until a model has been loaded using ModelViewer::loadFile(string)
     bool _modelLoaded; 
+    bool _lightingEnabled;
+    bool _texturingEnabled;
 
     QPoint _lastPos; // Last mouse position
     // Holds all keys currently being pressed
@@ -101,19 +114,18 @@ private:
 
     // Handles all camera movements each frame
     void processCameraMovements(); 
-
+    // Recalculates MVP matrix (projection * view * model)
     void recalculateMVP();
+    // Compile shader
     void loadShader(char* shaderSource, GLenum shaderType, GLuint &programId);
+    // Called to load the model vertices into memory
     void loadVertices();
-
     // Returns true if _keysPressed contains the key passed in 
     bool isKeyPressed(int key);
-
+    // Translate the model
     void translate(double x, double y, double z);
-
     // Returns a normalized vector from the center of the arcball to the point at (x, y)
     glm::vec3 getArcballVector(int x, int y);
-
     // Convert from camera coordinates to object coordinates
     glm::vec3 camToObj(glm::vec3 axisInCamCoords);
 
@@ -122,7 +134,6 @@ private:
         const GLenum error = glGetError();
         if(error != GL_NO_ERROR)
             printf("----------------------------- %i ----------------------", error);
-    
     }
 };
 

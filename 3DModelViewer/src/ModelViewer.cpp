@@ -20,8 +20,12 @@ ModelViewer::ModelViewer(QWidget* parent) :
   _camPosition(glm::vec3(0.0, 0.0, 3.0)),
   _camDirection(glm::vec3(0.0, 0.0, 0.0)),
   _camUp(glm::vec3(0.0, 1.0, 0.0)),
+  _lightColor(glm::vec3(1.0, 1.0, 1.0)),
+  _lightPos(glm::vec3(0.0, 5.0, 0.0)),
   _pendingMVPChange(false),
   _modelLoaded(false),
+  _lightingEnabled(true),
+  _texturingEnabled(true),
   _viewMode(ModelView),
   _file("")
 {
@@ -49,7 +53,6 @@ ModelViewer::ModelViewer(QWidget* parent) :
 
 ModelViewer::~ModelViewer() {
     glDeleteBuffers(1, &_vertexBuffer);
-    glDeleteBuffers(1, &_colorBuffer);
     glDeleteVertexArrays(1, &_vertexArray);
     glDeleteProgram(_programId);
 }
@@ -71,25 +74,30 @@ void ModelViewer::initializeGL() {
 
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_DEPTH_TEST);
-    //glDepthFunc(GL_LESS);
-    //glEnable(GL_LIGHTING);
-    //glEnable(GL_LIGHT0);
     glClearColor(1.0, 1.0, 1.0, 1.0);
 
-    // Sample lighting?
-    glm::vec4 lightPos(0, 0, 10, 1.0);
-    //glLightfv(GL_LIGHT0, GL_POSITION, glm::value_ptr(lightPos));
-
-    // Load our shaders
+    // Load and compile our shaders
     _programId = glCreateProgram();
     loadShader("shaders\\vertex.shader", GL_VERTEX_SHADER, _programId);
     loadShader("shaders\\fragment.shader", GL_FRAGMENT_SHADER, _programId);
-
     glUseProgram(_programId);
 
     // Get uniform handles
     _uniformMVPHandle = glGetUniformLocation(_programId, "mvp");
     _uniformTexSamplerHandle = glGetUniformLocation(_programId, "texSampler");
+    _uniformModelHandle = glGetUniformLocation(_programId, "model");
+    _uniformTexEnabledHandle = glGetUniformLocation(_programId, "texturingEnabled");
+    _uniformLightingHandle = glGetUniformLocation(_programId, "lightColor");
+    _uniformLightPosHandle = glGetUniformLocation(_programId, "lightPos");
+    _uniformLightingEnabledHandle = glGetUniformLocation(_programId, "lightingEnabled");
+    _uniformViewPosHandle = glGetUniformLocation(_programId, "viewPos");
+
+    // Set some uniforms here; the others will be set upon render
+    glUniform1f(_uniformTexEnabledHandle, 1.0f);
+    glUniform3f(_uniformLightingHandle, 1.0f, 1.0f, 1.0f);
+    glUniform3fv(_uniformLightPosHandle, 1, glm::value_ptr(_lightPos));
+    glUniform1f(_uniformLightingEnabledHandle, 1.0f);
+    glUniform4fv(_uniformModelHandle, 1, glm::value_ptr(_model));
 
     glGenVertexArrays(1, &_vertexArray);
     glBindVertexArray(_vertexArray);
@@ -102,7 +110,6 @@ void ModelViewer::paintGL() {
 
     if(!_modelLoaded)
         return;
-
     if(_mainModel->isModelMatrixOutOfDate())
         recalculateMVP();
 
@@ -127,8 +134,10 @@ void ModelViewer::paintGL() {
     glUseProgram(_programId);
     glBindVertexArray(_vertexArray);
 
-    // Set MVP
+    // Set uniforms
     glUniformMatrix4fv(_uniformMVPHandle, 1, GL_FALSE, glm::value_ptr(_mvp));
+    glUniform4fv(_uniformModelHandle, 1, glm::value_ptr(_model));
+    glUniform3fv(_uniformLightPosHandle, 1, glm::value_ptr(_lightPos));
 
     for(Model::Mesh mesh : _meshes) {
         glActiveTexture(GL_TEXTURE0 + mesh.diffuseTexture.texId);
@@ -147,10 +156,16 @@ void ModelViewer::paintGL() {
         glBindBuffer(GL_ARRAY_BUFFER, mesh.uvBuffer);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
+        // Third attribute buffer - normals
+        glEnableVertexAttribArray(2);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.normalBuffer);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
         glDrawArrays(GL_TRIANGLES, 0, mesh.numFaces * 3);
     }
 
     // Clean up
+    glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -217,6 +232,16 @@ void ModelViewer::loadVertices() {
             GL_ARRAY_BUFFER,
             mesh.numFaces * 3 * sizeof(glm::vec2),
             mesh.uvs.data(),
+            GL_STATIC_DRAW
+        );
+
+        // Send vertex normal data to gpu
+        glGenBuffers(1, &mesh.normalBuffer);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.normalBuffer);
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            mesh.numFaces * 3 * sizeof(glm::vec3),
+            mesh.normals.data(), 
             GL_STATIC_DRAW
         );
     }
@@ -352,6 +377,7 @@ void ModelViewer::resetView() {
     _model = glm::mat4(1.0);
     _xPos = _yPos = 0.0;
     _zPos = 3.0;
+    _lightPos = glm::vec3(0.0, 5.0, 0.0);
     recalculateMVP();
 }
 
@@ -364,7 +390,6 @@ ModelViewer::ViewMode ModelViewer::getViewMode() {
 }
 
 void ModelViewer::recalculateMVP() {
-    //_view = glm::lookAt(_camPosition, _camDirection, _camUp);
     if(!_modelLoaded)
         return;
 
@@ -384,7 +409,7 @@ void ModelViewer::loadShader(char* shaderSource, GLenum shaderType, GLuint &prog
     GLuint shaderId = glCreateShader(shaderType);
 
     GLint result = GL_FALSE; // compilation result
-    int infoLogLength; // length of info log
+    int infoLogLength;       // length of info log
 
     std::ifstream shaderFile(shaderSource);
     std::string shaderStr;
@@ -417,7 +442,6 @@ void ModelViewer::loadShader(char* shaderSource, GLenum shaderType, GLuint &prog
     std::vector<char> errorMessage(infoLogLength);
     glGetShaderInfoLog(shaderId, infoLogLength, NULL, &errorMessage[0]);
     qDebug() << errorMessage.data();
-    //fprintf(stdout, "%s\n", &errorMessage[0]);
 
     // Link the program
     qDebug() << "Linking program";
@@ -430,7 +454,6 @@ void ModelViewer::loadShader(char* shaderSource, GLenum shaderType, GLuint &prog
     std::vector<char> programErrorMessage(std::max(infoLogLength, int(1)));
     glGetProgramInfoLog(programId, infoLogLength, NULL, &programErrorMessage[0]);
     qDebug() << programErrorMessage.data();
-    //fprintf(stdout, "%s\n", &programErrorMessage[0]);
 
     glDeleteShader(shaderId);
 
@@ -438,6 +461,29 @@ void ModelViewer::loadShader(char* shaderSource, GLenum shaderType, GLuint &prog
 }
 
 void ModelViewer::onMessageLogged(QOpenGLDebugMessage message) {
+    // For logging OpenGL error messages
     if(message.severity() != QOpenGLDebugMessage::LowSeverity)
         qDebug() << message;
+}
+
+void ModelViewer::setLightingEnabled(bool enabled) {
+    _lightingEnabled = enabled;
+
+    glUseProgram(_programId);
+    if(enabled)
+        glUniform1f(_uniformLightingEnabledHandle, 1.0f);
+    else
+        glUniform1f(_uniformLightingEnabledHandle, 0.0f);
+    glUseProgram(0);
+}
+
+void ModelViewer::setTexturingEnabled(bool enabled) {
+    _texturingEnabled = enabled;
+
+    glUseProgram(_programId);
+    if(_texturingEnabled && isInitialized())
+        glUniform1f(_uniformTexEnabledHandle, 1.0);
+    else
+        glUniform1f(_uniformTexEnabledHandle, 0.0);
+    glUseProgram(0);
 }

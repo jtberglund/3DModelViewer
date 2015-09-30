@@ -10,7 +10,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(_ui.actionNew, SIGNAL(triggered()), this, SLOT(addNew()));
     connect(_ui.actionExit, SIGNAL(triggered()), this, SLOT(exitApp()));
-    connect(_ui.actionView_wireframe, SIGNAL(triggered(bool)), this, SLOT(toggleWireFrame(bool)));
+    connect(_ui.actionView_wireframe, SIGNAL(triggered(bool)), _ui.tabPane, SLOT(enableWireFrameView(bool)));
+    connect(_ui.actionLighting, SIGNAL(triggered(bool)), _ui.tabPane, SLOT(enableLighting(bool)));
+    connect(_ui.actionToggleTexturing, SIGNAL(triggered(bool)), _ui.tabPane, SLOT(enableTexturing(bool)));
 }
 
 MainWindow::~MainWindow() {}
@@ -54,8 +56,4 @@ void MainWindow::addNew() {
 
 void MainWindow::exitApp() {
     close();
-}
-
-void MainWindow::toggleWireFrame(bool checked) {
-    _ui.tabPane->setWireFrameView(checked);
 }

@@ -29,6 +29,8 @@ public:
     QAction *actionNew;
     QAction *actionExit;
     QAction *actionView_wireframe;
+    QAction *actionLighting;
+    QAction *actionToggleTexturing;
     TabPane *tabPane;
     QMenuBar *menuBar;
     QMenu *menuFile;
@@ -50,6 +52,20 @@ public:
         QIcon icon;
         icon.addFile(QStringLiteral(":/MainWindow/Resources/icons/mesh.svg"), QSize(), QIcon::Normal, QIcon::Off);
         actionView_wireframe->setIcon(icon);
+        actionLighting = new QAction(MainWindowClass);
+        actionLighting->setObjectName(QStringLiteral("actionLighting"));
+        actionLighting->setCheckable(true);
+        actionLighting->setChecked(true);
+        QIcon icon1;
+        icon1.addFile(QStringLiteral("Resources/icons/light-bulb24.svg"), QSize(), QIcon::Normal, QIcon::Off);
+        actionLighting->setIcon(icon1);
+        actionToggleTexturing = new QAction(MainWindowClass);
+        actionToggleTexturing->setObjectName(QStringLiteral("actionToggleTexturing"));
+        actionToggleTexturing->setCheckable(true);
+        actionToggleTexturing->setChecked(true);
+        QIcon icon2;
+        icon2.addFile(QStringLiteral("Resources/icons/image.svg"), QSize(), QIcon::Normal, QIcon::Off);
+        actionToggleTexturing->setIcon(icon2);
         tabPane = new TabPane(MainWindowClass);
         tabPane->setObjectName(QStringLiteral("tabPane"));
         MainWindowClass->setCentralWidget(tabPane);
@@ -72,6 +88,8 @@ public:
         menuFile->addSeparator();
         menuFile->addAction(actionExit);
         mainToolBar->addAction(actionView_wireframe);
+        mainToolBar->addAction(actionToggleTexturing);
+        mainToolBar->addAction(actionLighting);
 
         retranslateUi(MainWindowClass);
 
@@ -98,6 +116,17 @@ public:
 #ifndef QT_NO_TOOLTIP
         actionView_wireframe->setToolTip(QApplication::translate("MainWindowClass", "View this model as a wireframe", 0));
 #endif // QT_NO_TOOLTIP
+        actionView_wireframe->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+M", 0));
+        actionLighting->setText(QApplication::translate("MainWindowClass", "Toggle lighting", 0));
+#ifndef QT_NO_TOOLTIP
+        actionLighting->setToolTip(QApplication::translate("MainWindowClass", "Toggle Lighting", 0));
+#endif // QT_NO_TOOLTIP
+        actionLighting->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+L", 0));
+        actionToggleTexturing->setText(QApplication::translate("MainWindowClass", "Toggle Texturing", 0));
+#ifndef QT_NO_TOOLTIP
+        actionToggleTexturing->setToolTip(QApplication::translate("MainWindowClass", "Toggle Texturing", 0));
+#endif // QT_NO_TOOLTIP
+        actionToggleTexturing->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+T", 0));
         menuFile->setTitle(QApplication::translate("MainWindowClass", "File", 0));
     } // retranslateUi
 

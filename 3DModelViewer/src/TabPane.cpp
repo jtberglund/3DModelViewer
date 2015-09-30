@@ -4,7 +4,10 @@
 #include "QOpenGLContext"
 
 TabPane::TabPane(QWidget* parent) :
-  QTabWidget(parent)
+  QTabWidget(parent),
+  _wireFrameEnabled(false),
+  _lightingEnabled(true),
+  _texturingEnabled(true)
 {
     setTabsClosable(true);
     connect(this, SIGNAL(tabCloseRequested(int)), this, SLOT(closeTab(int)));
@@ -29,6 +32,11 @@ int TabPane::addTab(string fileName) {
     int ret = QTabWidget::addTab(_viewers[_viewers.size() - 1].get(), label.c_str());
     setCurrentIndex(count() - 1); // set the view to the new tab
 
+    // Set lighting/texturing/view mode
+    enableWireFrameView(_wireFrameEnabled);
+    enableLighting(_lightingEnabled);
+    enableTexturing(_texturingEnabled);
+
     return ret;
 }
 
@@ -37,8 +45,9 @@ void TabPane::addViewer() {
     _viewers.push_back(viewer);
 }
 
-void TabPane::setWireFrameView(bool enabled) {
-    if(currentIndex() == -1)
+void TabPane::enableWireFrameView(bool enabled) {
+    _wireFrameEnabled = enabled;
+    if(currentIndex() == -1 || _viewers.empty())
         return;
 
     // Toggle wireframe mode
@@ -49,6 +58,20 @@ void TabPane::setWireFrameView(bool enabled) {
 }
 
 void TabPane::closeTab(int index) {
-    _viewers.erase(_viewers.begin() + index);
-    removeTab(index);
+    if(index >= 0 && _viewers.size() > index) {
+        _viewers.erase(_viewers.begin() + index);
+        removeTab(index);
+    }
+}
+
+void TabPane::enableLighting(bool enabled) {
+    _lightingEnabled = enabled;
+    if(!_viewers.empty() && currentIndex() < _viewers.size())
+        _viewers[currentIndex()]->setLightingEnabled(enabled);
+}
+
+void TabPane::enableTexturing(bool enabled) {
+    _texturingEnabled = enabled;
+    if(!_viewers.empty() && currentIndex() < _viewers.size())
+        _viewers[currentIndex()]->setTexturingEnabled(enabled);
 }
