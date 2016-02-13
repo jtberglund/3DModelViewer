@@ -5,14 +5,11 @@
 HEADERS += ./src/Model.h \
     ./src/Utils.h \
     ./src/ModelViewer.h \
-    ./src/TabPane.h \
-    ./src/mainwindow.h \
-    ./GeneratedFiles/ui_mainwindow.h \
     ./src/mainwindow.h \
     ./src/Model.h \
-    ./src/ModelViewer.h \
     ./src/TabPane.h \
     ./src/Utils.h \
+    ./GeneratedFiles/ui_mainwindow.h \
     ./ThirdParty/glm/glm/common.hpp \
     ./ThirdParty/glm/glm/exponential.hpp \
     ./ThirdParty/glm/glm/ext.hpp \

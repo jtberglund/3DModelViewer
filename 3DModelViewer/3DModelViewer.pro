@@ -4,7 +4,19 @@
 
 TEMPLATE = app
 TARGET = 3DModelViewer
-DESTDIR = ../MacOSX/Debug
+CONFIG(debug, debug|release) {
+    win32:DESTDIR = ../Win32/Debug
+    macx:DESTDIR = ../MacOSX/Debug
+    MOC_DIR += ./GeneratedFiles/debug
+    OBJECTS_DIR += debug
+    INCLUDEPATH += ./GeneratedFiles/Debug
+} else {
+    win32:DESTDIR = ../Win32/Release
+    macx:DESTDIR = ../MacOSX/Release
+    MOC_DIR += ./GeneratedFiles/release
+    OBJECTS_DIR += release
+    INCLUDEPATH += ./GeneratedFiles/Release
+}
 QT += core opengl widgets gui
 QMAKE_LFLAGS += -v
 CONFIG += debug \
@@ -14,7 +26,6 @@ INCLUDEPATH += \
     . \
     ./src/ \
     ./GeneratedFiles \
-    ./GeneratedFiles/Debug \
     ./ThirdParty/glm/glm \
     ./ThirdParty/DevIL/include \
     /usr/local/lib/pkgconfig/ \
@@ -32,9 +43,7 @@ macx: LIBS += -L$$PWD/lib/assimp/macosx/ -lassimpd.3.1.1 \
     -lILUT
 
 DEPENDPATH += .
-MOC_DIR += ./GeneratedFiles/debug
-OBJECTS_DIR += debug
 UI_DIR += ./GeneratedFiles
 RCC_DIR += ./GeneratedFiles
+RC_FILE = 3DModelViewer.rc
 include(3DModelViewer.pri)
-win32:RC_FILE = 3DModelViewer.rc
