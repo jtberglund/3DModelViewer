@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QtWidgets/QMainWindow>
-#include "ui_mainwindow.h"
+#include "GeneratedFiles/ui_mainwindow.h"
 #include "ModelViewer.h"
 #include <memory>
 

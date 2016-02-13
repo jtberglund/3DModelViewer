@@ -1,0 +1,6 @@
+
+*.o
+
+*.user
+
+.qmake.stash

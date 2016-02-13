@@ -1,43 +1,35 @@
 #include "ModelViewer.h"
 
-#include "gtc\matrix_transform.hpp"
-#include "gtc\type_ptr.hpp"
-#include "gtx\rotate_vector.hpp"
+#include "gtc/matrix_transform.hpp"
+#include "gtc/type_ptr.hpp"
+#include "gtx/rotate_vector.hpp"
 
 #include <fstream>
 #include "QSurface"
 
-#include "Resources\assimp\include\assimp\Importer.hpp"
-#include "Resources\assimp\include\assimp\scene.h"
-#include "Resources\assimp\include\assimp\postprocess.h"
+#include "Resources/assimp/include/assimp/Importer.hpp"
+#include "Resources/assimp/include/assimp/scene.h"
+#include "Resources/assimp/include/assimp/postprocess.h"
 
 ModelViewer::ModelViewer(QWidget* parent) :
   QOpenGLWidget(parent),
+  _file(""),
+  _viewMode(ModelView),
+  _lightColor(glm::vec3(1.0, 1.0, 1.0)),
+  _lightPos(glm::vec3(0.0, 5.0, 0.0)),
+  _camPosition(glm::vec3(0.0, 0.0, 3.0)),
+  _camDirection(glm::vec3(0.0, 0.0, 0.0)),
+  _camUp(glm::vec3(0.0, 1.0, 0.0)),
   _xPos(0.0),
   _yPos(0.0),
   _zPos(3.0),
   _fov(45.0),
-  _camPosition(glm::vec3(0.0, 0.0, 3.0)),
-  _camDirection(glm::vec3(0.0, 0.0, 0.0)),
-  _camUp(glm::vec3(0.0, 1.0, 0.0)),
-  _lightColor(glm::vec3(1.0, 1.0, 1.0)),
-  _lightPos(glm::vec3(0.0, 5.0, 0.0)),
   _pendingMVPChange(false),
   _modelLoaded(false),
   _lightingEnabled(true),
-  _texturingEnabled(true),
-  _viewMode(ModelView),
-  _file("")
+  _texturingEnabled(true)
 {
-    // Set OpenGL format
-    QSurfaceFormat format;
-    format.setDepthBufferSize(24);
-    format.setMajorVersion(3);
-    format.setMinorVersion(3);
-    format.setSamples(4);
-    format.setOption(QSurfaceFormat::DebugContext);
-    setFormat(format);
-
+    setFormat(QSurfaceFormat::defaultFormat());
     makeCurrent();
 
     // Set up our matrices
@@ -58,19 +50,32 @@ ModelViewer::~ModelViewer() {
 }
 
 void ModelViewer::initializeGL() {
+    qDebug() << "--- Current OpenGL context ---";
+    qDebug() << context()->format();
+
+    if(context() == nullptr || !context()->isValid())
+        throw std::runtime_error("Error: OpenGL context is invalid");
 
     // Create a logger for debugging purposes
     _logger = new QOpenGLDebugLogger(this);
 
     connect(_logger, SIGNAL(messageLogged(QOpenGLDebugMessage)), this, SLOT(onMessageLogged(QOpenGLDebugMessage)), Qt::DirectConnection);
 
-    if(_logger->initialize()) {
+    if(_logger->initialize() && this->context()->hasExtension(QByteArrayLiteral("GL_KHR_DEBUG"))) {
         _logger->startLogging(QOpenGLDebugLogger::SynchronousLogging);
         _logger->enableMessages();
     }
 
     // Initialize OpenGL for Qt
-    initializeOpenGLFunctions();
+    if(!initializeOpenGLFunctions()) {
+        QList<QOpenGLDebugMessage> messages = _logger->loggedMessages();
+        foreach (const QOpenGLDebugMessage &message, messages)
+            qDebug() << message;
+
+        throw std::runtime_error("Error: Cannot initialize OpenGL functions");
+    }
+
+    qDebug() << "OpenGL Driver Version String:" << QLatin1String(reinterpret_cast<const char*>(glGetString(GL_VERSION)));
 
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_DEPTH_TEST);
@@ -78,8 +83,8 @@ void ModelViewer::initializeGL() {
 
     // Load and compile our shaders
     _programId = glCreateProgram();
-    loadShader("shaders\\vertex.shader", GL_VERTEX_SHADER, _programId);
-    loadShader("shaders\\fragment.shader", GL_FRAGMENT_SHADER, _programId);
+    loadShader("shaders/vertex.shader", GL_VERTEX_SHADER, _programId);
+    loadShader("shaders/fragment.shader", GL_FRAGMENT_SHADER, _programId);
     glUseProgram(_programId);
 
     // Get uniform handles
@@ -178,6 +183,10 @@ void ModelViewer::paintGL() {
 }
 
 void ModelViewer::resizeGL(int width, int height) {
+
+    if(!isInitialized())
+        return;
+
     glViewport(0, 0, width, height);
 
     _projection = glm::perspective(45.0, double(width) / double(height), 0.1, 10000.0);
@@ -405,7 +414,7 @@ void ModelViewer::recalculateMVP() {
     _pendingMVPChange = false;
 }
 
-void ModelViewer::loadShader(char* shaderSource, GLenum shaderType, GLuint &programId) {
+void ModelViewer::loadShader(string shaderSource, GLenum shaderType, GLuint &programId) {
     GLuint shaderId = glCreateShader(shaderType);
 
     GLint result = GL_FALSE; // compilation result
@@ -417,7 +426,7 @@ void ModelViewer::loadShader(char* shaderSource, GLenum shaderType, GLuint &prog
 
     if(!shaderFile.is_open()) {
         std::string error = "Error: could not read file ";
-        throw std::exception(error.append(shaderSource).c_str());
+        throw std::runtime_error(error.append(shaderSource).c_str());
     }
 
     // Read shader

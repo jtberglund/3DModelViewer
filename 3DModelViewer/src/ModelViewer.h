@@ -117,7 +117,7 @@ private:
     // Recalculates MVP matrix (projection * view * model)
     void recalculateMVP();
     // Compile shader
-    void loadShader(char* shaderSource, GLenum shaderType, GLuint &programId);
+    void loadShader(string shaderSource, GLenum shaderType, GLuint &programId);
     // Called to load the model vertices into memory
     void loadVertices();
     // Returns true if _keysPressed contains the key passed in 

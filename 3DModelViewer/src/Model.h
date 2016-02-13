@@ -2,17 +2,17 @@
 
 #include "glm.hpp"
 #include "QOpenGLFunctions_3_3_Core"
-#include "IL\ilu.h"
+#include "IL/ilu.h"
 #include <vector>
 #include <string>
 
 using std::vector;
 using std::string;
 
-class aiScene;
-class aiNode;
-class aiMesh;
-class aiMaterial;
+struct aiScene;
+struct aiNode;
+struct aiMesh;
+struct aiMaterial;
 
 #define NUM_AI_TEXTURE_TYPES 0xC
 

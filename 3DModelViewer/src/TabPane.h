@@ -30,7 +30,7 @@ public slots:
 
 private:
     // Holds all of our views
-    std::vector<shared_ptr<ModelViewer>> _viewers;
+    std::vector<shared_ptr<ModelViewer> > _viewers;
 
     bool _wireFrameEnabled;
     bool _lightingEnabled;

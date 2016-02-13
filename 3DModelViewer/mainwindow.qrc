@@ -1,5 +1,12 @@
 <RCC>
-  <qresource prefix="MainWindow">
-    <file>Resources/icons/mesh.svg</file>
-  </qresource>
+    <qresource prefix="/MainWindow">
+        <file>Resources/icons/mesh.svg</file>
+        <file>Resources/icons/image.svg</file>
+        <file>Resources/icons/light-bulb24.svg</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>Resources/icons/image.svg</file>
+        <file>Resources/icons/light-bulb24.svg</file>
+        <file>Resources/icons/mesh.svg</file>
+    </qresource>
 </RCC>

@@ -4,23 +4,33 @@
 
 TEMPLATE = app
 TARGET = 3DModelViewer
-DESTDIR = ../Win32/Debug
+DESTDIR = ../MacOSX/Debug
 QT += core opengl widgets gui
-CONFIG += debug
-DEFINES += WIN64 QT_DLL QT_OPENGL_LIB QT_WIDGETS_LIB
-INCLUDEPATH += ./GeneratedFiles \
+QMAKE_LFLAGS += -v
+CONFIG += debug \
+    c++11
+DEFINES += QT_DLL QT_OPENGL_LIB QT_WIDGETS_LIB
+INCLUDEPATH += \
     . \
+    ./src/ \
+    ./GeneratedFiles \
     ./GeneratedFiles/Debug \
     ./ThirdParty/glm/glm \
-    ./ThirdParty/DevIL/include
-LIBS += -L"./lib/assimp/lib32/Debug" \
-    -L"./lib/DevIL/lib" \
-    -lopengl32 \
+    ./ThirdParty/DevIL/include \
+    /usr/local/lib/pkgconfig/ \
+
+win32: LIBS += -lopengl32 \
     -lglu32 \
     -lassimpd \
+    -L"./lib/DevIL/lib" \
+    -llibassimpd \
     -lDevIL \
+
+macx: LIBS += -L$$PWD/lib/assimp/macosx/ -lassimpd.3.1.1 \
+    -L$$PWD/lib/DevIL/lib/macosx/ -lIL \
     -lILU \
     -lILUT
+
 DEPENDPATH += .
 MOC_DIR += ./GeneratedFiles/debug
 OBJECTS_DIR += debug

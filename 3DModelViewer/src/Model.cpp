@@ -4,14 +4,14 @@
 #include "fstream"
 
 // GLM
-#include "gtc\matrix_transform.hpp"
+#include "gtc/matrix_transform.hpp"
 // Assimp
-#include "Resources\assimp\include\assimp\Importer.hpp"
-#include "Resources\assimp\include\assimp\scene.h"
-#include "Resources\assimp\include\assimp\postprocess.h"
+#include "Resources/assimp/include/assimp/Importer.hpp"
+#include "Resources/assimp/include/assimp/scene.h"
+#include "Resources/assimp/include/assimp/postprocess.h"
 // DevIL
-#include "IL\il.h"
-#include "IL\ilut.h"
+#include "IL/il.h"
+#include "IL/ilut.h"
 
 Model::Model() :
   _modelMatrixOutOfDate(true),
@@ -352,6 +352,6 @@ void Model::reset() {
 void Model::checkILError() {
     _ilError = ilGetError();
     if(_ilError != IL_NO_ERROR) {
-        throw std::exception(iluGetString(_ilError));
+        throw std::runtime_error(iluGetString(_ilError));
     }
 }
